@@ -1,13 +1,10 @@
-// Default Master Categories
-const CATEGORIES = {
-    pemasukan: ['Kas Mingguan', 'Denda Transfer', 'Sumbangan Online', 'Lain-lain'],
-    pengeluaran: ['Alat Tulis & Fotokopi', 'Acara Kelas', 'Lomba', 'Kebersihan', 'Lain-lain']
-};
-
+// ... existing code ... ...
 // State Aplikasi
 let transactions = [];
 let students = [];
 let tempCompressedImage = null; // Menyimpan temporary base64 image yang sudah dikompres
+let isAdmin = false; // Flag Mode Admin (Default: false / Client)
+const ADMIN_PIN = "0208"; // PIN Admin Default
 
 // Inisialisasi Saat Halaman Dimuat
 window.onload = function() {
@@ -18,133 +15,66 @@ window.onload = function() {
     lucide.createIcons();
 };
 
-// --- MANAJEMEN STORAGE ---
-function loadDataFromStorage() {
-    const savedTrans = localStorage.getItem('kas_transactions');
-    const savedStudents = localStorage.getItem('kas_students');
-
-    if (savedTrans) {
-        transactions = JSON.parse(savedTrans);
+// --- AUTENTIKASI ADMIN & PERMISSION CONTROLLER ---
+function toggleAdminMode() {
+    if (isAdmin) {
+        // Keluar dari mode Admin ke Client
+        isAdmin = false;
+        showToast('Anda kembali ke Mode Client (Siswa)', 'info');
+        updateAdminUI();
+        renderAll();
     } else {
-        transactions = [];
-        saveTransactions();
+        // Buka Modal PIN
+        document.getElementById('adminPinInput').value = '';
+        document.getElementById('adminAuthModal').classList.remove('hidden');
+        document.getElementById('adminPinInput').focus();
     }
+}
 
-    if (savedStudents) {
-        students = JSON.parse(savedStudents);
+function closeAdminModal() {
+    document.getElementById('adminAuthModal').classList.add('hidden');
+}
+
+function verifyAdminPin() {
+    const enteredPin = document.getElementById('adminPinInput').value;
+    if (enteredPin === ADMIN_PIN) {
+        isAdmin = true;
+        closeAdminModal();
+        showToast('Login Admin Berhasil! Mode Admin Aktif.', 'success');
+        updateAdminUI();
+        renderAll();
     } else {
-        students = [
-            { id: '1', nama: 'Efan Fadian', paid: true },
-            { id: '2', nama: 'Budi Santoso', paid: false },
-            { id: '3', nama: 'Citra Dewi', paid: true },
-            { id: '4', nama: 'Dewi Lestari', paid: false }
-        ];
-        saveStudents();
+        showToast('PIN Admin salah!', 'error');
+        document.getElementById('adminPinInput').value = '';
     }
 }
 
-function saveTransactions() {
-    localStorage.setItem('kas_transactions', JSON.stringify(transactions));
-}
+function updateAdminUI() {
+    const authText = document.getElementById('adminAuthText');
+    const authIcon = document.getElementById('adminAuthIcon');
+    const authBtn = document.getElementById('adminAuthBtn');
+    const btnReset = document.getElementById('btnResetData');
+    const btnImport = document.getElementById('btnImportExcel');
+    const btnAddStudent = document.getElementById('btnAddStudent');
 
-function saveStudents() {
-    localStorage.setItem('kas_students', JSON.stringify(students));
-}
+    if (isAdmin) {
+        authText.innerText = 'Mode: Admin (Aktif)';
+        authBtn.className = 'bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-amber-400';
+        authIcon.setAttribute('data-lucide', 'unlock');
+        
+        btnReset.classList.remove('hidden');
+        btnImport.classList.remove('hidden');
+        btnAddStudent.classList.remove('hidden');
+    } else {
+        authText.innerText = 'Mode: Client (Siswa)';
+        authBtn.className = 'bg-indigo-800 hover:bg-indigo-900 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-indigo-500';
+        authIcon.setAttribute('data-lucide', 'lock');
 
-function getFormattedDate(offsetDays = 0) {
-    const d = new Date();
-    d.setDate(d.getDate() + offsetDays);
-    return d.toISOString().split('T')[0];
-}
-
-function updateCategoryOptions() {
-    const jenis = document.querySelector('input[name="jenis"]:checked').value;
-    const selectKategori = document.getElementById('inputKategori');
-    selectKategori.innerHTML = '';
-    CATEGORIES[jenis].forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat;
-        opt.innerText = cat;
-        selectKategori.appendChild(opt);
-    });
-}
-
-// --- HANDLER PRATINJAU & KOMPRESI GAMBAR ---
-function handleImagePreview(e) {
-    const file = e.target.files[0];
-    const previewContainer = document.getElementById('formImagePreviewContainer');
-    const previewImg = document.getElementById('formImagePreview');
-
-    if (!file) {
-        tempCompressedImage = null;
-        previewContainer.classList.add('hidden');
-        return;
+        btnReset.classList.add('hidden');
+        btnImport.classList.add('hidden');
+        btnAddStudent.classList.add('hidden');
     }
-
-    // Kompresi Gambar Menggunakan Canvas
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800; // Resize maks lebar 800px untuk hemat storage
-            let width = img.width;
-            let height = img.height;
-
-            if (width > MAX_WIDTH) {
-                height = Math.round((height * MAX_WIDTH) / width);
-                width = MAX_WIDTH;
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            // Re-encode ke JPEG kualitas 0.7
-            tempCompressedImage = canvas.toDataURL('image/jpeg', 0.7);
-
-            // Tampilkan Pratinjau di Form
-            previewImg.src = tempCompressedImage;
-            previewContainer.classList.remove('hidden');
-        };
-        img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-}
-
-// --- RENDER LOGIC ---
-function renderAll() {
-    renderSummaryCards();
-    renderTransactions();
-    renderStudents();
     lucide.createIcons();
-}
-
-function renderSummaryCards() {
-    let totalMasuk = 0;
-    let countMasuk = 0;
-    let totalKeluar = 0;
-    let countKeluar = 0;
-
-    transactions.forEach(t => {
-        if (t.jenis === 'pemasukan') {
-            totalMasuk += Number(t.jumlah);
-            countMasuk++;
-        } else {
-            totalKeluar += Number(t.jumlah);
-            countKeluar++;
-        }
-    });
-
-    const saldoAkhir = totalMasuk - totalKeluar;
-
-    document.getElementById('statTotalSaldo').innerText = formatRupiah(saldoAkhir);
-    document.getElementById('statPemasukan').innerText = formatRupiah(totalMasuk);
-    document.getElementById('statJumlahPemasukan').innerText = `${countMasuk} Transfer Masuk`;
-    document.getElementById('statPengeluaran').innerText = formatRupiah(totalKeluar);
-    document.getElementById('statJumlahPengeluaran').innerText = `${countKeluar} Transfer Keluar`;
 }
 
 function renderTransactions() {
@@ -182,6 +112,13 @@ function renderTransactions() {
                    </button>` 
                 : `<span class="text-[10px] text-rose-500 font-bold">Tanpa Bukti</span>`;
 
+            // Tombol hapus hanya muncul untuk Admin
+            const deleteActionBtn = isAdmin 
+                ? `<button onclick="deleteTransaction('${t.id}')" class="p-1 text-slate-400 hover:text-rose-600 transition" title="Hapus">
+                        <i data-lucide="trash" class="w-4 h-4"></i>
+                   </button>`
+                : `<span class="text-[10px] text-slate-400 italic">No Access</span>`;
+
             tr.innerHTML = `
                 <td class="py-3 px-3 text-slate-600 whitespace-nowrap">${formatTanggalIndo(t.tanggal)}</td>
                 <td class="py-3 px-3 whitespace-nowrap">
@@ -199,9 +136,7 @@ function renderTransactions() {
                     ${isMasuk ? '+' : '-'} ${formatRupiah(t.jumlah)}
                 </td>
                 <td class="py-3 px-3 text-center">
-                    <button onclick="deleteTransaction('${t.id}')" class="p-1 text-slate-400 hover:text-rose-600 transition" title="Hapus">
-                        <i data-lucide="trash" class="w-4 h-4"></i>
-                    </button>
+                    ${deleteActionBtn}
                 </td>
             `;
             tbody.appendChild(tr);
@@ -225,9 +160,20 @@ function renderStudents() {
             s.paid ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'
         }`;
 
+        // Checkbox toggle & Hapus hanya bisa oleh Admin
+        const checkboxEl = isAdmin 
+            ? `<input type="checkbox" ${s.paid ? 'checked' : ''} onchange="toggleStudentPaid('${s.id}')" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4">`
+            : `<input type="checkbox" ${s.paid ? 'checked' : ''} disabled class="rounded border-slate-300 text-slate-300 w-4 h-4 cursor-not-allowed">`;
+
+        const deleteStudentBtn = isAdmin 
+            ? `<button onclick="deleteStudent('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">
+                    <i data-lucide="x-circle" class="w-4 h-4"></i>
+               </button>`
+            : '';
+
         item.innerHTML = `
-            <label class="flex items-center gap-2 cursor-pointer flex-1">
-                <input type="checkbox" ${s.paid ? 'checked' : ''} onchange="toggleStudentPaid('${s.id}')" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+            <label class="flex items-center gap-2 ${isAdmin ? 'cursor-pointer' : 'cursor-default'} flex-1">
+                ${checkboxEl}
                 <span class="font-medium ${s.paid ? 'line-through text-slate-400' : 'text-slate-700'}">${s.nama}</span>
             </label>
             <div class="flex items-center gap-2">
@@ -236,9 +182,7 @@ function renderStudents() {
                 }">
                     ${s.paid ? 'Lunas' : 'Belum'}
                 </span>
-                <button onclick="deleteStudent('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">
-                    <i data-lucide="x-circle" class="w-4 h-4"></i>
-                </button>
+                ${deleteStudentBtn}
             </div>
         `;
         container.appendChild(item);
@@ -438,6 +382,11 @@ function closeImageModal() {
 }
 
 function deleteTransaction(id) {
+    if (!isAdmin) {
+        showToast('Hanya Admin yang dapat menghapus transaksi!', 'error');
+        return;
+    }
+
     if (confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) {
         transactions = transactions.filter(t => t.id !== id);
         saveTransactions();
@@ -447,6 +396,11 @@ function deleteTransaction(id) {
 }
 
 function confirmResetData() {
+    if (!isAdmin) {
+        showToast('Hanya Admin yang dapat mereset data!', 'error');
+        return;
+    }
+
     if (confirm('PERHATIAN: Apakah Anda yakin ingin menghapus SEMUA data transaksi? Data tidak bisa dikembalikan kecuali Anda memiliki cadangan Excel.')) {
         transactions = [];
         saveTransactions();
@@ -457,6 +411,11 @@ function confirmResetData() {
 
 // --- SISWA LOGIC ---
 function toggleStudentPaid(id) {
+    if (!isAdmin) {
+        showToast('Hanya Admin yang dapat mengubah status kas siswa!', 'error');
+        return;
+    }
+
     const student = students.find(s => s.id === id);
     if (student) {
         student.paid = !student.paid;
