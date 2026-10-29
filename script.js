@@ -11,6 +11,7 @@ window.onload = function() {
     document.getElementById('inputTanggal').valueAsDate = new Date();
     loadDataFromStorage();
     updateCategoryOptions();
+    updateAdminUI(); // <--- DITAMBAHKAN: Memastikan event listener & UI mode awal berjalan
     renderAll();
     lucide.createIcons();
 };
@@ -25,9 +26,65 @@ function toggleAdminMode() {
         renderAll();
     } else {
         // Buka Modal PIN
+        const pinInput = document.getElementById('adminPinInput');
+        if (pinInput) pinInput.value = '';
+        
+        const modal = document.getElementById('adminAuthModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                if (pinInput) pinInput.focus();
+            }, 100);
+        }
+    }
+}
+
+function closeAdminModal() {
+    const modal = document.getElementById('adminAuthModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function verifyAdminPin() {
+    const enteredPin = document.getElementById('adminPinInput').value;
+    if (enteredPin === ADMIN_PIN) {
+        isAdmin = true;
+        closeAdminModal();
+        showToast('Login Admin Berhasil! Mode Admin Aktif.', 'success');
+        updateAdminUI();
+        renderAll();
+    } else {
+        showToast('PIN Admin salah!', 'error');
         document.getElementById('adminPinInput').value = '';
-        document.getElementById('adminAuthModal').classList.remove('hidden');
-        document.getElementById('adminPinInput').focus();
+    }
+}
+
+function updateAdminUI() {
+    const authText = document.getElementById('adminAuthText');
+    const authIcon = document.getElementById('adminAuthIcon');
+    const authBtn = document.getElementById('adminAuthBtn');
+    const btnReset = document.getElementById('btnResetData');
+    const btnImport = document.getElementById('btnImportExcel');
+    const btnAddStudent = document.getElementById('btnAddStudent');
+
+    if (isAdmin) {
+        if (authText) authText.innerText = 'Mode: Admin (Aktif)';
+        if (authBtn) authBtn.className = 'bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-amber-400 cursor-pointer';
+        if (authIcon) authIcon.setAttribute('data-lucide', 'unlock');
+        
+        if (btnReset) btnReset.classList.remove('hidden');
+        if (btnImport) btnImport.classList.remove('hidden');
+        if (btnAddStudent) btnAddStudent.classList.remove('hidden');
+    } else {
+        if (authText) authText.innerText = 'Mode: Client (Siswa)';
+        if (authBtn) authBtn.className = 'bg-indigo-800 hover:bg-indigo-900 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-indigo-500 cursor-pointer';
+        if (authIcon) authIcon.setAttribute('data-lucide', 'lock');
+
+        if (btnReset) btnReset.classList.add('hidden');
+        if (btnImport) btnImport.classList.add('hidden');
+        if (btnAddStudent) btnAddStudent.classList.add('hidden');
+    }
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
     }
 }
 
