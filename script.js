@@ -11,26 +11,6 @@ let tempCompressedImage = null; // Menyimpan temporary base64 image yang sudah d
 let isAdmin = false; // Flag Mode Admin (Default: false / Client)
 const ADMIN_PIN = "0208"; // PIN Admin Default
 
-// Inisialisasi Saat Halaman Dimuat
-window.onload = function() {
-    document.getElementById('inputTanggal').valueAsDate = new Date();
-    loadDataFromStorage();
-    updateCategoryOptions();
-    updateAdminUI(); // Inisialisasi tampilan awal
-    renderAll();
-    
-    // Support enter key pada input PIN modal admin
-    const pinInput = document.getElementById('adminPinInput');
-    if (pinInput) {
-        pinInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                verifyAdminPin();
-            }
-        });
-    }
-};
-
 // --- MANAJEMEN STORAGE ---
 function loadDataFromStorage() {
     const savedTrans = localStorage.getItem('kas_transactions');
@@ -71,8 +51,12 @@ function getFormattedDate(offsetDays = 0) {
 }
 
 function updateCategoryOptions() {
-    const jenis = document.querySelector('input[name="jenis"]:checked').value;
+    const checkedRadio = document.querySelector('input[name="jenis"]:checked');
+    if (!checkedRadio) return;
+    const jenis = checkedRadio.value;
     const selectKategori = document.getElementById('inputKategori');
+    if (!selectKategori) return;
+    
     selectKategori.innerHTML = '';
     CATEGORIES[jenis].forEach(cat => {
         const opt = document.createElement('option');
@@ -83,19 +67,20 @@ function updateCategoryOptions() {
 }
 
 // --- AUTENTIKASI ADMIN & PERMISSION CONTROLLER ---
-function toggleAdminMode() {
+window.toggleAdminMode = function() {
     if (isAdmin) {
         // Keluar dari mode Admin ke Client
         isAdmin = false;
-        showToast('Anda kembali ke Mode Client (Siswa)', 'info');
+        showToast('Anda kembali ke Mode Client (Mahasiswa)', 'info');
         updateAdminUI();
         renderAll();
     } else {
         // Buka Modal PIN
+        const modal = document.getElementById('adminAuthModal');
         const pinInput = document.getElementById('adminPinInput');
+        
         if (pinInput) pinInput.value = '';
         
-        const modal = document.getElementById('adminAuthModal');
         if (modal) {
             modal.classList.remove('hidden');
             setTimeout(() => {
@@ -103,14 +88,14 @@ function toggleAdminMode() {
             }, 100);
         }
     }
-}
+};
 
-function closeAdminModal() {
+window.closeAdminModal = function() {
     const modal = document.getElementById('adminAuthModal');
     if (modal) modal.classList.add('hidden');
-}
+};
 
-function verifyAdminPin() {
+window.verifyAdminPin = function() {
     const pinInput = document.getElementById('adminPinInput');
     if (!pinInput) return;
     
@@ -126,31 +111,34 @@ function verifyAdminPin() {
         pinInput.value = '';
         pinInput.focus();
     }
-}
+};
 
 function updateAdminUI() {
     const authText = document.getElementById('adminAuthText');
-    const authIcon = document.getElementById('adminAuthIcon');
     const authBtn = document.getElementById('adminAuthBtn');
     const btnReset = document.getElementById('btnResetData');
+    const btnExport = document.getElementById('btnExportExcel');
     const btnImport = document.getElementById('btnImportExcel');
+    const btnCopy = document.getElementById('btnCopyTable');
     const btnAddStudent = document.getElementById('btnAddStudent');
 
     if (isAdmin) {
         if (authText) authText.innerText = 'Mode: Admin (Aktif)';
-        if (authBtn) authBtn.className = 'bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-amber-400 cursor-pointer';
-        if (authIcon) authIcon.setAttribute('data-lucide', 'unlock');
+        if (authBtn) authBtn.className = 'bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-amber-400 cursor-pointer z-10';
         
         if (btnReset) btnReset.classList.remove('hidden');
+        if (btnExport) btnExport.classList.remove('hidden');
         if (btnImport) btnImport.classList.remove('hidden');
+        if (btnCopy) btnCopy.classList.remove('hidden');
         if (btnAddStudent) btnAddStudent.classList.remove('hidden');
     } else {
-        if (authText) authText.innerText = 'Mode: Client (Siswa)';
-        if (authBtn) authBtn.className = 'bg-indigo-800 hover:bg-indigo-900 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-indigo-500 cursor-pointer';
-        if (authIcon) authIcon.setAttribute('data-lucide', 'lock');
+        if (authText) authText.innerText = 'Mode: Client (Mahasiswa)';
+        if (authBtn) authBtn.className = 'bg-indigo-800 hover:bg-indigo-900 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-indigo-500 cursor-pointer z-10';
 
         if (btnReset) btnReset.classList.add('hidden');
+        if (btnExport) btnExport.classList.add('hidden');
         if (btnImport) btnImport.classList.add('hidden');
+        if (btnCopy) btnCopy.classList.add('hidden');
         if (btnAddStudent) btnAddStudent.classList.add('hidden');
     }
 
@@ -160,7 +148,7 @@ function updateAdminUI() {
 }
 
 // --- HANDLER PRATINJAU & KOMPRESI GAMBAR ---
-function handleImagePreview(e) {
+window.handleImagePreview = function(e) {
     const file = e.target.files[0];
     const previewContainer = document.getElementById('formImagePreviewContainer');
     const previewImg = document.getElementById('formImagePreview');
@@ -202,7 +190,7 @@ function handleImagePreview(e) {
         img.src = event.target.result;
     };
     reader.readAsDataURL(file);
-}
+};
 
 // --- RENDER LOGIC ---
 function renderAll() {
@@ -269,17 +257,17 @@ function renderTransactions() {
 
             const isMasuk = t.jenis === 'pemasukan';
             const photoThumbnail = t.buktiFoto 
-                ? `<button onclick="openImageModal('${t.buktiFoto}')" class="group relative inline-block overflow-hidden rounded-lg border border-slate-200 shadow-sm hover:ring-2 hover:ring-indigo-500 transition">
+                ? `<button type="button" onclick="openImageModal('${t.buktiFoto}')" class="group relative inline-block overflow-hidden rounded-lg border border-slate-200 shadow-sm hover:ring-2 hover:ring-indigo-500 transition">
                      <img src="${t.buktiFoto}" alt="Bukti" class="w-10 h-10 object-cover group-hover:scale-105 transition">
                    </button>` 
                 : `<span class="text-[10px] text-rose-500 font-bold">Tanpa Bukti</span>`;
 
             // Tombol hapus hanya muncul untuk Admin
             const deleteActionBtn = isAdmin 
-                ? `<button onclick="deleteTransaction('${t.id}')" class="p-1 text-slate-400 hover:text-rose-600 transition" title="Hapus">
+                ? `<button type="button" onclick="deleteTransaction('${t.id}')" class="p-1 text-slate-400 hover:text-rose-600 transition" title="Hapus">
                         <i data-lucide="trash" class="w-4 h-4"></i>
                    </button>`
-                : `<span class="text-[10px] text-slate-400 italic">No Access</span>`;
+                : `<span class="text-[10px] text-slate-400 italic">Terkuci</span>`;
 
             tr.innerHTML = `
                 <td class="py-3 px-3 text-slate-600 whitespace-nowrap">${formatTanggalIndo(t.tanggal)}</td>
@@ -327,7 +315,7 @@ function renderStudents() {
             : `<input type="checkbox" ${s.paid ? 'checked' : ''} disabled class="rounded border-slate-300 text-slate-300 w-4 h-4 cursor-not-allowed">`;
 
         const deleteStudentBtn = isAdmin 
-            ? `<button onclick="deleteStudent('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">
+            ? `<button type="button" onclick="deleteStudent('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">
                     <i data-lucide="x-circle" class="w-4 h-4"></i>
                </button>`
             : '';
@@ -351,7 +339,7 @@ function renderStudents() {
 }
 
 // --- ADD TRANSACTION HANDLER ---
-async function handleAddTransaction(e) {
+window.handleAddTransaction = async function(e) {
     e.preventDefault();
     const tanggal = document.getElementById('inputTanggal').value;
     const jenis = document.querySelector('input[name="jenis"]:checked').value;
@@ -392,10 +380,15 @@ async function handleAddTransaction(e) {
     tempCompressedImage = null;
 
     showToast('Transaksi transfer berhasil dicatat!', 'success');
-}
+};
 
 // --- EKSPOR EXCEL ---
-function exportToExcel() {
+window.exportToExcel = function() {
+    if (!isAdmin) {
+        showToast('Hanya Admin yang dapat mengekspor data Excel!', 'error');
+        return;
+    }
+
     if (transactions.length === 0) {
         showToast('Tidak ada data transaksi untuk diekspor', 'error');
         return;
@@ -435,10 +428,10 @@ function exportToExcel() {
 
     XLSX.writeFile(wb, `Kas_Kelas_Transfer_${getFormattedDate()}.xlsx`);
     showToast('Berhasil mengunduh laporan Excel!', 'success');
-}
+};
 
 // IMPOR DARI EXCEL
-function importFromExcel(event) {
+window.importFromExcel = function(event) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -499,10 +492,15 @@ function importFromExcel(event) {
     };
 
     reader.readAsArrayBuffer(file);
-}
+};
 
 // SALIN TABEL KE CLIPBOARD
-function copyTableToClipboard() {
+window.copyTableToClipboard = function() {
+    if (!isAdmin) {
+        showToast('Hanya Admin yang dapat menyalin data tabel!', 'error');
+        return;
+    }
+
     if (transactions.length === 0) {
         showToast('Tidak ada data transaksi untuk disalin', 'error');
         return;
@@ -527,21 +525,22 @@ function copyTableToClipboard() {
     }
 
     document.body.removeChild(tempTextarea);
-}
+};
 
 // Modal Preview Foto Handlers
-function openImageModal(imgSrc) {
+window.openImageModal = function(imgSrc) {
     const modal = document.getElementById('imagePreviewModal');
     const img = document.getElementById('modalPreviewImage');
-    img.src = imgSrc;
-    modal.classList.remove('hidden');
-}
+    if (img) img.src = imgSrc;
+    if (modal) modal.classList.remove('hidden');
+};
 
-function closeImageModal() {
-    document.getElementById('imagePreviewModal').classList.add('hidden');
-}
+window.closeImageModal = function() {
+    const modal = document.getElementById('imagePreviewModal');
+    if (modal) modal.classList.add('hidden');
+};
 
-function deleteTransaction(id) {
+window.deleteTransaction = function(id) {
     if (!isAdmin) {
         showToast('Hanya Admin yang dapat menghapus transaksi!', 'error');
         return;
@@ -553,9 +552,9 @@ function deleteTransaction(id) {
         renderAll();
         showToast('Transaksi berhasil dihapus', 'info');
     }
-}
+};
 
-function confirmResetData() {
+window.confirmResetData = function() {
     if (!isAdmin) {
         showToast('Hanya Admin yang dapat mereset data!', 'error');
         return;
@@ -567,10 +566,10 @@ function confirmResetData() {
         renderAll();
         showToast('Semua data transaksi telah direset', 'info');
     }
-}
+};
 
 // --- SISWA LOGIC ---
-function toggleStudentPaid(id) {
+window.toggleStudentPaid = function(id) {
     if (!isAdmin) {
         showToast('Hanya Admin yang dapat mengubah status kas siswa!', 'error');
         return;
@@ -582,19 +581,24 @@ function toggleStudentPaid(id) {
         saveStudents();
         renderStudents();
     }
-}
+};
 
-function openAddStudentModal() {
-    document.getElementById('addStudentModal').classList.remove('hidden');
-}
+window.openAddStudentModal = function() {
+    const modal = document.getElementById('addStudentModal');
+    if (modal) modal.classList.remove('hidden');
+};
 
-function closeAddStudentModal() {
-    document.getElementById('addStudentModal').classList.add('hidden');
-    document.getElementById('newStudentName').value = '';
-}
+window.closeAddStudentModal = function() {
+    const modal = document.getElementById('addStudentModal');
+    if (modal) modal.classList.add('hidden');
+    const nameInput = document.getElementById('newStudentName');
+    if (nameInput) nameInput.value = '';
+};
 
-function saveNewStudent() {
-    const name = document.getElementById('newStudentName').value.trim();
+window.saveNewStudent = function() {
+    const nameInput = document.getElementById('newStudentName');
+    if (!nameInput) return;
+    const name = nameInput.value.trim();
     if (name) {
         students.push({
             id: Date.now().toString(),
@@ -606,9 +610,9 @@ function saveNewStudent() {
         closeAddStudentModal();
         showToast('Siswa berhasil ditambahkan', 'success');
     }
-}
+};
 
-function deleteStudent(id) {
+window.deleteStudent = function(id) {
     if (!isAdmin) {
         showToast('Hanya Admin yang dapat menghapus siswa!', 'error');
         return;
@@ -616,7 +620,7 @@ function deleteStudent(id) {
     students = students.filter(s => s.id !== id);
     saveStudents();
     renderStudents();
-}
+};
 
 // --- HELPER FORMATTING & TOAST ---
 function formatRupiah(number) {
@@ -660,3 +664,25 @@ function showToast(message, type = 'info') {
         }, 300);
     }, 3000);
 }
+
+// Inisialisasi Saat Halaman Dimuat
+document.addEventListener('DOMContentLoaded', function() {
+    const inputTanggal = document.getElementById('inputTanggal');
+    if (inputTanggal) inputTanggal.valueAsDate = new Date();
+    
+    loadDataFromStorage();
+    updateCategoryOptions();
+    updateAdminUI(); // Inisialisasi tampilan awal
+    renderAll();
+    
+    // Support enter key pada input PIN modal admin
+    const pinInput = document.getElementById('adminPinInput');
+    if (pinInput) {
+        pinInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                verifyAdminPin();
+            }
+        });
+    }
+});
