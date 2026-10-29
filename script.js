@@ -28,9 +28,6 @@ function loadDataFromStorage() {
     } else {
         students = [
             { id: '1', nama: 'Efan Fadian', paid: true },
-            { id: '2', nama: 'Budi Santoso', paid: false },
-            { id: '3', nama: 'Citra Dewi', paid: true },
-            { id: '4', nama: 'Dewi Lestari', paid: false }
         ];
         saveStudents();
     }
