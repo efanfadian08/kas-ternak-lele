@@ -24,19 +24,19 @@
                 <div class="p-2 bg-indigo-500 rounded-lg">
                     <i data-lucide="wallet" class="w-7 h-7"></i>
                 </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight">Kas Kelas Online (Transfer Only)</h1>
-                    <p class="text-xs text-indigo-200">Pencatatan Kas Transaksi Non-Tunai & Integrasi Excel</p>
-                </div>
-            </div>
-
-            <!-- Action Buttons Excel -->
+            <!-- Action Buttons Excel & Admin Toggle -->
             <div class="flex flex-wrap items-center gap-2">
+                <!-- Status Mode Indicator / Login Admin Button -->
+                <button id="adminAuthBtn" onclick="toggleAdminMode()" class="bg-indigo-800 hover:bg-indigo-900 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-indigo-500">
+                    <i data-lucide="lock" class="w-4 h-4 text-amber-300" id="adminAuthIcon"></i>
+                    <span id="adminAuthText">Mode: Client (Siswa)</span>
+                </button>
+
                 <button onclick="exportToExcel()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95">
                     <i data-lucide="download" class="w-4 h-4"></i>
                     <span>Ekspor Excel</span>
                 </button>
-                <label class="bg-teal-600 hover:bg-teal-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm cursor-pointer active:scale-95">
+                <label id="btnImportExcel" class="hidden bg-teal-600 hover:bg-teal-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm cursor-pointer active:scale-95">
                     <i data-lucide="upload" class="w-4 h-4"></i>
                     <span>Impor Excel</span>
                     <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="importFromExcel(event)">
@@ -201,7 +201,7 @@
                             <i data-lucide="users" class="w-5 h-5 text-indigo-600"></i>
                             Status Kas Data Mahasiswa
                         </h2>
-                        <button onclick="openAddStudentModal()" class="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2.5 py-1 rounded-md font-medium transition">
+                        <button id="btnAddStudent" onclick="openAddStudentModal()" class="hidden text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2.5 py-1 rounded-md font-medium transition">
                             + Siswa
                         </button>
                     </div>
@@ -241,8 +241,8 @@
                                 <option value="pengeluaran">Pengeluaran</option>
                             </select>
 
-                            <!-- Reset Data -->
-                            <button onclick="confirmResetData()" title="Hapus Semua Data" class="p-2 border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition">
+                            <!-- Reset Data (Admin Only) -->
+                            <button id="btnResetData" onclick="confirmResetData()" title="Hapus Semua Data" class="hidden p-2 border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
@@ -349,6 +349,26 @@
             <div class="flex justify-end gap-2">
                 <button onclick="closeAddStudentModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">Batal</button>
                 <button onclick="saveNewStudent()" class="px-4 py-2 text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Login Admin PIN -->
+    <div id="adminAuthModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xs w-full p-6 shadow-2xl space-y-4">
+            <div class="text-center space-y-1">
+                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <i data-lucide="shield-check" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-800">Login Administrator</h3>
+                <p class="text-xs text-slate-500">Masukkan PIN Admin untuk membuka akses edit & hapus data.</p>
+            </div>
+            <div>
+                <input type="password" id="adminPinInput" placeholder="Masukkan PIN (Default: 1234)" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-center tracking-widest focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold" maxlength="8">
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeAdminModal()" class="w-1/2 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">Batal</button>
+                <button onclick="verifyAdminPin()" class="w-1/2 py-2 text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition">Masuk</button>
             </div>
         </div>
     </div>
