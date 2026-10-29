@@ -1,4 +1,9 @@
-// ... existing code ... ...
+// Default Master Categories
+const CATEGORIES = {
+    pemasukan: ['Kas Mingguan', 'Denda Transfer', 'Sumbangan Online', 'Lain-lain'],
+    pengeluaran: ['Alat Tulis & Fotokopi', 'Acara Kelas', 'Lomba', 'Kebersihan', 'Lain-lain']
+};
+
 // State Aplikasi
 let transactions = [];
 let students = [];
@@ -11,10 +16,71 @@ window.onload = function() {
     document.getElementById('inputTanggal').valueAsDate = new Date();
     loadDataFromStorage();
     updateCategoryOptions();
-    updateAdminUI(); // <--- DITAMBAHKAN: Memastikan event listener & UI mode awal berjalan
+    updateAdminUI(); // Inisialisasi tampilan awal
     renderAll();
-    lucide.createIcons();
+    
+    // Support enter key pada input PIN modal admin
+    const pinInput = document.getElementById('adminPinInput');
+    if (pinInput) {
+        pinInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                verifyAdminPin();
+            }
+        });
+    }
 };
+
+// --- MANAJEMEN STORAGE ---
+function loadDataFromStorage() {
+    const savedTrans = localStorage.getItem('kas_transactions');
+    const savedStudents = localStorage.getItem('kas_students');
+
+    if (savedTrans) {
+        transactions = JSON.parse(savedTrans);
+    } else {
+        transactions = [];
+        saveTransactions();
+    }
+
+    if (savedStudents) {
+        students = JSON.parse(savedStudents);
+    } else {
+        students = [
+            { id: '1', nama: 'Efan Fadian', paid: true },
+            { id: '2', nama: 'Budi Santoso', paid: false },
+            { id: '3', nama: 'Citra Dewi', paid: true },
+            { id: '4', nama: 'Dewi Lestari', paid: false }
+        ];
+        saveStudents();
+    }
+}
+
+function saveTransactions() {
+    localStorage.setItem('kas_transactions', JSON.stringify(transactions));
+}
+
+function saveStudents() {
+    localStorage.setItem('kas_students', JSON.stringify(students));
+}
+
+function getFormattedDate(offsetDays = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    return d.toISOString().split('T')[0];
+}
+
+function updateCategoryOptions() {
+    const jenis = document.querySelector('input[name="jenis"]:checked').value;
+    const selectKategori = document.getElementById('inputKategori');
+    selectKategori.innerHTML = '';
+    CATEGORIES[jenis].forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.innerText = cat;
+        selectKategori.appendChild(opt);
+    });
+}
 
 // --- AUTENTIKASI ADMIN & PERMISSION CONTROLLER ---
 function toggleAdminMode() {
@@ -45,7 +111,10 @@ function closeAdminModal() {
 }
 
 function verifyAdminPin() {
-    const enteredPin = document.getElementById('adminPinInput').value;
+    const pinInput = document.getElementById('adminPinInput');
+    if (!pinInput) return;
+    
+    const enteredPin = pinInput.value.trim();
     if (enteredPin === ADMIN_PIN) {
         isAdmin = true;
         closeAdminModal();
@@ -54,7 +123,8 @@ function verifyAdminPin() {
         renderAll();
     } else {
         showToast('PIN Admin salah!', 'error');
-        document.getElementById('adminPinInput').value = '';
+        pinInput.value = '';
+        pinInput.focus();
     }
 }
 
@@ -83,55 +153,90 @@ function updateAdminUI() {
         if (btnImport) btnImport.classList.add('hidden');
         if (btnAddStudent) btnAddStudent.classList.add('hidden');
     }
+
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
 }
 
-function closeAdminModal() {
-    document.getElementById('adminAuthModal').classList.add('hidden');
+// --- HANDLER PRATINJAU & KOMPRESI GAMBAR ---
+function handleImagePreview(e) {
+    const file = e.target.files[0];
+    const previewContainer = document.getElementById('formImagePreviewContainer');
+    const previewImg = document.getElementById('formImagePreview');
+
+    if (!file) {
+        tempCompressedImage = null;
+        previewContainer.classList.add('hidden');
+        return;
+    }
+
+    // Kompresi Gambar Menggunakan Canvas
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800; // Resize maks lebar 800px untuk hemat storage
+            let width = img.width;
+            let height = img.height;
+
+            if (width > MAX_WIDTH) {
+                height = Math.round((height * MAX_WIDTH) / width);
+                width = MAX_WIDTH;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Re-encode ke JPEG kualitas 0.7
+            tempCompressedImage = canvas.toDataURL('image/jpeg', 0.7);
+
+            // Tampilkan Pratinjau di Form
+            previewImg.src = tempCompressedImage;
+            previewContainer.classList.remove('hidden');
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
-function verifyAdminPin() {
-    const enteredPin = document.getElementById('adminPinInput').value;
-    if (enteredPin === ADMIN_PIN) {
-        isAdmin = true;
-        closeAdminModal();
-        showToast('Login Admin Berhasil! Mode Admin Aktif.', 'success');
-        updateAdminUI();
-        renderAll();
-    } else {
-        showToast('PIN Admin salah!', 'error');
-        document.getElementById('adminPinInput').value = '';
+// --- RENDER LOGIC ---
+function renderAll() {
+    renderSummaryCards();
+    renderTransactions();
+    renderStudents();
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
     }
 }
 
-function updateAdminUI() {
-    const authText = document.getElementById('adminAuthText');
-    const authIcon = document.getElementById('adminAuthIcon');
-    const authBtn = document.getElementById('adminAuthBtn');
-    const btnReset = document.getElementById('btnResetData');
-    const btnImport = document.getElementById('btnImportExcel');
-    const btnAddStudent = document.getElementById('btnAddStudent');
+function renderSummaryCards() {
+    let totalMasuk = 0;
+    let countMasuk = 0;
+    let totalKeluar = 0;
+    let countKeluar = 0;
 
-    if (isAdmin) {
-        authText.innerText = 'Mode: Admin (Aktif)';
-        authBtn.className = 'bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-amber-400';
-        authIcon.setAttribute('data-lucide', 'unlock');
-        
-        btnReset.classList.remove('hidden');
-        btnImport.classList.remove('hidden');
-        btnAddStudent.classList.remove('hidden');
-    } else {
-        authText.innerText = 'Mode: Client (Siswa)';
-        authBtn.className = 'bg-indigo-800 hover:bg-indigo-900 text-white px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm active:scale-95 border border-indigo-500';
-        authIcon.setAttribute('data-lucide', 'lock');
+    transactions.forEach(t => {
+        if (t.jenis === 'pemasukan') {
+            totalMasuk += Number(t.jumlah);
+            countMasuk++;
+        } else {
+            totalKeluar += Number(t.jumlah);
+            countKeluar++;
+        }
+    });
 
-        btnReset.classList.add('hidden');
-        btnImport.classList.add('hidden');
-        btnAddStudent.classList.add('hidden');
-    }
-    lucide.createIcons();
+    const saldoAkhir = totalMasuk - totalKeluar;
+
+    document.getElementById('statTotalSaldo').innerText = formatRupiah(saldoAkhir);
+    document.getElementById('statPemasukan').innerText = formatRupiah(totalMasuk);
+    document.getElementById('statJumlahPemasukan').innerText = `${countMasuk} Transfer Masuk`;
+    document.getElementById('statPengeluaran').innerText = formatRupiah(totalKeluar);
+    document.getElementById('statJumlahPengeluaran').innerText = `${countKeluar} Transfer Keluar`;
 }
 
 function renderTransactions() {
@@ -199,7 +304,6 @@ function renderTransactions() {
             tbody.appendChild(tr);
         });
     }
-    lucide.createIcons();
 }
 
 function renderStudents() {
@@ -219,7 +323,7 @@ function renderStudents() {
 
         // Checkbox toggle & Hapus hanya bisa oleh Admin
         const checkboxEl = isAdmin 
-            ? `<input type="checkbox" ${s.paid ? 'checked' : ''} onchange="toggleStudentPaid('${s.id}')" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4">`
+            ? `<input type="checkbox" ${s.paid ? 'checked' : ''} onchange="toggleStudentPaid('${s.id}')" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">`
             : `<input type="checkbox" ${s.paid ? 'checked' : ''} disabled class="rounded border-slate-300 text-slate-300 w-4 h-4 cursor-not-allowed">`;
 
         const deleteStudentBtn = isAdmin 
@@ -244,7 +348,6 @@ function renderStudents() {
         `;
         container.appendChild(item);
     });
-    lucide.createIcons();
 }
 
 // --- ADD TRANSACTION HANDLER ---
@@ -506,6 +609,10 @@ function saveNewStudent() {
 }
 
 function deleteStudent(id) {
+    if (!isAdmin) {
+        showToast('Hanya Admin yang dapat menghapus siswa!', 'error');
+        return;
+    }
     students = students.filter(s => s.id !== id);
     saveStudents();
     renderStudents();
@@ -529,6 +636,8 @@ function formatTanggalIndo(dateString) {
 
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
     const toast = document.createElement('div');
 
     let bgColor = 'bg-slate-800 text-white';
